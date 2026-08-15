@@ -1,0 +1,89 @@
+Third-party notices for the free PC-9821 firmware
+=================================================
+
+This firmware is MIT-licensed (see LICENSE).  Parts of it derive from
+Neko Project 21/W, which is BSD 3-Clause licensed.  Clause 2 of that
+licence applies to BINARY redistribution as well as source: if you
+redistribute a built ROM image, this notice has to go with it.
+
+
+Neko Project 21/W
+-----------------
+
+Derived material, and where it came from upstream:
+
+  core/bios/crt.c        the CRT parameter table (`crtdata`), the cursor
+                         form table (`csrform`), the master and slave GDC
+                         SYNC parameter sets, and the index arithmetic of
+                         the INT 18h AH=30h display-mode service.
+                         From np21w bios/bios18.c.
+
+  core/lib/hwinit.c      the power-on I/O write table for the DMA
+                         controller, PIT and interrupt controllers
+                         (`hw_table`).  From np21w bios/bios.c.
+                         The two interrupt-mask seed values at the end of
+                         that table are NOT from np21w; they were measured
+                         on a real PC-9821Xa7.
+
+  include/pc98/gdc.h     the uPD7220 command opcodes and the mode
+                         flip-flop bit numbers.  From np21w io/gdc_cmd.h
+                         and io/gdc.c.  (These are hardware constants and
+                         are listed here out of caution rather than
+                         because the selection is obviously expressive.)
+
+Two further files name np21w in their comments but carry no code from it,
+and are listed only so the citation is not mistaken for a derivation:
+
+  core/bios/disk.c       cites np21w's SXSI disk BIOS for the INT 1Bh
+                         CALL CONVENTION, which is a PC-98 interface, not
+                         an implementation.  The implementation here is
+                         unrelated.
+
+  include/pc98/wa.h      cites np21w for the NAMES of published work-area
+                         fields.  The addresses were measured.
+
+Licence text as published by the project, applying to np21w source not
+covered by a more specific licence in its LICENSES directory:
+
+    Copyright (c) 1999-2025, NP2 developer team
+    All rights reserved.
+
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions are met:
+    * Redistributions of source code must retain the above copyright notice,
+      this list of conditions and the following disclaimer.
+    * Redistributions in binary form must reproduce the above copyright notice,
+      this list of conditions and the following disclaimer in the documentation
+      and/or other materials provided with the distribution.
+    * Neither the name of the <organization> nor the names of its contributors
+      may be used to endorse or promote products derived from this software
+      without specific prior written permission.
+
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+    ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+    DISCLAIMED. IN NO EVENT SHALL <COPYRIGHT HOLDER> BE LIABLE FOR ANY
+    DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+    ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+The third clause means this firmware may not be promoted or endorsed
+using the NP2 developer team's name or its contributors' names.
+
+
+The character generator ROM is NOT covered by this repository's licence
+-----------------------------------------------------------------------
+
+`make font` downloads two font sources and builds `pc98-free-font.rom`
+from them.  `tools/mkfont.py` is MIT like the rest of this tree, but the
+ROM it PRODUCES embeds glyph data from:
+
+  GNU Unifont JP    OFL-1.1, and GPLv2+ with the GNU Font Embedding
+                    Exception.  Its kanji are public-domain Izumi glyphs.
+  IchigoJam font    MIT.
+
+If you redistribute a built font ROM, those terms travel with it,
+whatever this repository's licence says.  Neither font is vendored here.

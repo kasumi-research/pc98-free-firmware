@@ -1,0 +1,58 @@
+/*
+ * BANK6 — the F0000-F7FFF window, and the only place an OS scan looks.
+ *
+ * This bank is mapped unconditionally at F0000 (the model copies
+ * flash + 6*BANK_SIZE into the F0 window), unlike BANK7's F8000 window
+ * which is switched by 043Dh/043Fh.
+ *
+ * It exists because the ring-0 scanner that matters only covers this
+ * window.  Measured on a Win98 boot with paread over F0000-F7FFF: the
+ * scanner at pc=c180699b reads one dword per 16-byte boundary and, on
+ * the reference, stops after 1308 of them -- 1308*16 = 0x51C0, i.e. it
+ * found $PnP at F51B0 and quit.  On our firmware it read all 2048
+ * boundaries, the whole window, and found nothing, because our
+ * structures were up in BANK7 at F8xxx.  The reference then makes four
+ * more ring-0 passes over this window (pc=c0002370, c180c610,
+ * c18068cc, c180d6d2); we made none.  A structure the scan cannot
+ * reach is exactly as invisible as no structure at all.
+ *
+ * So the two structures an OS scans for, and the code they name, live
+ * here -- at the reference's own addresses, F4C40 and F51B0.  Both are
+ * self-contained: they touch only ports, their own arguments and the
+ * work area, never BANK7.
+ *
+ * The blob is placed at bank offset 0x4C40 by tools/mkflash.py, so a
+ * symbol's value IS its offset from F0000.
+ *
+ * SPDX-License-Identifier: MIT
+ */
+#include <pc98/layout.h>
+
+OUTPUT_FORMAT(elf32-i386)
+ENTRY(bios32_struct)
+
+SECTIONS
+{
+    . = BANK6_BIOS32_OFF;       /* F4C40, where the reference keeps _32_ */
+    .bios32 : { *(.bios32) }
+
+    . = BANK6_PNP_OFF;          /* F51B0, where the reference keeps $PnP */
+    .pnp : { *(.pnp) }
+
+    /*
+     * The entry itself is pinned at F5624 -- PM code base 000F5600 with
+     * offset 0024 -- because that is one of the only two entry points
+     * Windows 98's BIOS.VXD recognises.  See layout.h.
+     */
+    . = BANK6_PNPENTRY_OFF;
+    .pnpentry : { *(.pnpentry) }
+    _bank6_end = .;
+
+    ASSERT(ADDR(.pnpentry) == BANK6_PNPENTRY_OFF,
+           "BANK6: the $PnP entry must land exactly at F5624")
+
+    ASSERT(_bank6_end <= BANK_SIZE,
+           "BANK6: content has grown past the end of the F0000 window")
+
+    /DISCARD/ : { *(.comment .note.* .eh_frame .rel.* .rela.* .data .bss) }
+}

@@ -1,0 +1,12 @@
+build/
+*.o
+*.d
+*.elf
+*.bin
+
+# ref/ is a scratch area for the HLE sources the QEMU PC-98 machine
+# carried before this firmware replaced them, kept as a reference for
+# the BIOS service semantics.  They belong to that tree, not this one,
+# and copying them here would only let them rot: recover them from the
+# QEMU repository's own history when they are needed.
+ref/

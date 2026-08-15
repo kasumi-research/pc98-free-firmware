@@ -1,0 +1,74 @@
+/*
+ * BANK4 — the ITF.
+ *
+ * Linked at 0x4000 because the power-on reset vector is
+ * `jmp f800:4000`: with CS = F800, a bank offset and a segment offset
+ * are the same number, so link addresses are usable directly.
+ *
+ * The ITF is NOT copied to RAM: it runs from the ROM window throughout,
+ * with CS = F800 (see core/post/entry.S).  Only the stack and .bss live
+ * in RAM, in SEG_ITF_DATA, which is why the two halves of this script
+ * are two unrelated address spaces.  .bss is NOLOAD — it exists only in
+ * RAM and never occupies a ROM byte.
+ *
+ * SPDX-License-Identifier: MIT
+ */
+#include <pc98/layout.h>
+
+OUTPUT_FORMAT(elf32-i386)
+ENTRY(_start)
+
+/*
+ * TWO ADDRESS SPACES, with different segment bases.  The addresses
+ * below the divider are offsets in CS (= F800, the ROM window); the
+ * ones above it are offsets in DS = SS (= SEG_ITF_DATA, RAM).  They
+ * are unrelated numbers and must not be compared.
+ */
+SECTIONS
+{
+    /* ---- ROM: offsets within segment F800 ---- */
+
+    . = ITF_ENTRY_OFF;
+
+    .text : {
+        *(.entry)               /* the reset target must be byte 0 */
+        *(.text .text.*)
+    }
+    .rodata : { *(.rodata .rodata.*) }
+    _image_end = .;
+
+    ASSERT(_image_end <= RESETVEC_OFF,
+           "BANK4: ITF image has grown into the reset vector at 0x7FF0")
+
+    . = RESETVEC_OFF;
+    .resetvec : { *(.resetvec) }
+
+    /* ---- RAM: offsets within SEG_ITF_DATA ---- */
+
+    . = ITF_BSS_BASE;
+    .data : { *(.data .data.*) }
+
+    /*
+     * Initialised writable globals are BANNED.  Their initialisers
+     * would live in ROM at a CS offset and have to be copied to a
+     * different DS offset at startup; the copy loop is easy to get
+     * wrong and easy to forget.  Use .bss plus explicit init, or make
+     * it const so it stays in ROM and is read with rom_*.
+     */
+    ASSERT(SIZEOF(.data) == 0,
+           "BANK4: initialised writable global found. Use .bss and \
+initialise at runtime, or make it const (ROM, read via rom_*).")
+
+    .bss (NOLOAD) : {
+        _bss_start = .;
+        *(.bss .bss.*)
+        *(COMMON)
+        . = ALIGN(4);
+        _bss_end = .;
+    }
+
+    ASSERT(_bss_end <= ITF_STACK_TOP - 0x1000,
+           "BANK4: .bss has grown into the stack below 0xFFFC")
+
+    /DISCARD/ : { *(.comment .note.* .eh_frame .rel.* .rela.*) }
+}

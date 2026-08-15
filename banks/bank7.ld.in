@@ -1,0 +1,90 @@
+/*
+ * BANK7 — the runtime BIOS.
+ *
+ * Linked at 0, not at a bank offset: warm boot enters at fd80:0000, so
+ * the BIOS runs with CS = FD80 and its IPs start from zero.  The blob
+ * is then placed at bank offset 0x5800 (= physical FD800) by
+ * tools/mkflash.py.
+ *
+ * Consequence worth remembering: an address in this bank is 0x5800
+ * lower than the equivalent BANK4 address for the same physical byte.
+ *
+ * The budget below is set by the layout, not chosen: everything has to
+ * fit between the capability block at the bottom of the bank and the
+ * fd80:0000 trampoline at 0x5800, because both of those addresses are
+ * published and neither can move.
+ *
+ * SPDX-License-Identifier: MIT
+ */
+#include <pc98/layout.h>
+
+OUTPUT_FORMAT(elf32-i386)
+ENTRY(_bios_start)
+
+SECTIONS
+{
+    /*
+     * The capability block first: it is published at a fixed address
+     * (F8E80) and cannot move, so it anchors the bottom of the bank.
+     */
+    . = BIOS_CAPS_OFF;
+    .caps : { *(.caps) }
+
+    /*
+     * The BIOS32 service directory, as low in the bank as it will go.
+     *
+     * Placement is not free the way the MPS and $PnP structures' is.
+     * Measured on a Win98 boot (scratch/logs/b32c.log, paread probes on
+     * 16-byte boundaries across E0000-FFFFF): the ring-0 scanner at
+     * pc=c180699b reads F0000, F4C40, F8000 and FC000 and then stops --
+     * it never reaches FD030, where this landed when it rode along at
+     * the end of the image next to $PnP.  A structure the scan does not
+     * reach is exactly as invisible as no structure at all.  The
+     * reference puts its own at F4C40, well down in the range.
+     *
+     * Its code is .code32 and has no business being reached as part of
+     * the 16-bit .text, so it keeps its own section.
+     */
+    .bios32 : { *(.bios32) }
+
+
+    . = BIOS_TEXT_OFF;
+    .text : {
+        *(.entry)
+        *(.text .text.*)
+    }
+    .rodata : { *(.rodata .rodata.*) }
+    /*
+     * The MPS tables.  They only have to be somewhere in F0000-FFFFF
+     * (one of the three places the specification lets the OS scan for
+     * the floating pointer), so they ride along at the end of the
+     * image; tools/mkflash.py fills in their checksums.
+     */
+    .mps : { *(.mps) }
+    _image_end = .;
+
+    ASSERT(_image_end <= BIOS_WARM_OFF,
+           "BANK7: BIOS image has grown into the fd80:0000 trampoline")
+
+    . = BIOS_WARM_OFF;          /* = fd80:0000, the published entry */
+    .warment : { *(.warment) }
+
+    . = BIOS_RESETVEC_OFF;      /* = bank offset 0x7FF0 = physical FFFF0 */
+    .resetvec : { *(.resetvec) }
+
+    /*
+     * The BIOS has no writable data of ANY kind -- no .data and no .bss.
+     * There is no segment to put it in: handlers run on the caller's
+     * stack with DS = SS (bregs.h), so a "global" would land at an
+     * offset in whatever segment the caller happened to be using.  All
+     * persistent state belongs in the work area (wa.h), all constants
+     * in ROM read through rom_* (romdata.h).
+     */
+    .data : { *(.data .data.*) }
+    .bss  : { *(.bss .bss.*) *(COMMON) }
+    ASSERT(SIZEOF(.data) == 0 && SIZEOF(.bss) == 0,
+           "BANK7: writable global found. The BIOS has no data segment: \
+put persistent state in the work area (wa.h) or make it const.")
+
+    /DISCARD/ : { *(.comment .note.* .eh_frame .rel.* .rela.*) }
+}
